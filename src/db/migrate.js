@@ -36,13 +36,13 @@ BEGIN
     AND column_name = 'user_id' 
     AND data_type = 'integer'
   ) THEN
-    -- Alterar o tipo da coluna
-    ALTER TABLE videos ALTER COLUMN user_id TYPE VARCHAR(255) USING user_id::VARCHAR;
-    
-    -- Remover foreign key constraint se existir
+    -- PRIMEIRO: Remover foreign key constraint se existir
     ALTER TABLE videos DROP CONSTRAINT IF EXISTS videos_user_id_fkey;
     
-    -- Definir valor padrão
+    -- DEPOIS: Alterar o tipo da coluna
+    ALTER TABLE videos ALTER COLUMN user_id TYPE VARCHAR(255) USING user_id::VARCHAR;
+    
+    -- FINALMENTE: Definir valor padrão
     ALTER TABLE videos ALTER COLUMN user_id SET DEFAULT 'default-user';
     
     RAISE NOTICE 'Coluna user_id alterada de INTEGER para VARCHAR(255)';
