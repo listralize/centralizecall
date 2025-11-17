@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: screenrecorder-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # Database connection
+      DATABASE_URL: ${DATABASE_URL}
+      
+      # Server configuration
+      PORT: 3000
+      HOST: 0.0.0.0
+      BASE_URL: https://screen.listralize.com.br
+      
+      # Upload configuration
+      UPLOAD_DIR: /data/videos
+      
+      # CORS configuration
+      CORS_ORIGIN: "*"
+      
+      # Logging
+      LOG_LEVEL: info
+    volumes:
+      - videos-data:/data/videos
+    networks:
+      - coolify
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.screenrecorder-api.rule=Host(`screen.listralize.com.br`)"
+      - "traefik.http.routers.screenrecorder-api.entrypoints=websecure"
+      - "traefik.http.routers.screenrecorder-api.tls=true"
+      - "traefik.http.routers.screenrecorder-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.screenrecorder-api.loadbalancer.server.port=3000"
+
+volumes:
+  videos-data:
+    driver: local
+
+networks:
+  coolify:
+    external: true
