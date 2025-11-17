@@ -2,9 +2,7 @@ version: '3.8'
 
 services:
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ${COOLIFY_CONTAINER_IMAGE:-screenrecorder-api:latest}
     container_name: screenrecorder-api
     restart: unless-stopped
     ports:
