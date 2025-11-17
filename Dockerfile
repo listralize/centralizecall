@@ -1,0 +1,42 @@
+# Build stage
+FROM node:22-alpine AS builder
+
+WORKDIR /app
+
+# Copiar arquivos de dependências
+COPY package*.json ./
+
+# Instalar dependências
+RUN npm ci --only=production
+
+# Production stage
+FROM node:22-alpine
+
+WORKDIR /app
+
+# Criar usuário não-root
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
+# Copiar dependências do builder
+COPY --from=builder /app/node_modules ./node_modules
+
+# Copiar código fonte
+COPY --chown=nodejs:nodejs . .
+
+# Criar diretório para uploads
+RUN mkdir -p /data/videos && \
+    chown -R nodejs:nodejs /data
+
+# Mudar para usuário não-root
+USER nodejs
+
+# Expor porta
+EXPOSE 3000
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+
+# Comando de inicialização
+CMD ["node", "src/index.js"]
