@@ -1,4 +1,5 @@
 # Build stage
+# Version: 1.1 - CORS fix applied
 FROM node:22-alpine AS builder
 
 WORKDIR /app
