@@ -72,7 +72,7 @@ export default async function uploadRoutes(fastify, options) {
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
         [
           videoId,
-          request.user.id,
+          'default-user', // Usuário padrão por enquanto
           filename,
           data.filename,
           stats.size,
