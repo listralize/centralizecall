@@ -4,6 +4,7 @@ import multipart from '@fastify/multipart';
 import { authenticateRequest } from './middleware/auth.js';
 import uploadRoutes from './routes/upload.js';
 import videoRoutes from './routes/videos.js';
+import publicRoutes from './routes/public.js';
 
 const fastify = Fastify({
   logger: {
@@ -42,15 +43,18 @@ fastify.get('/', async (request, reply) => {
     description: 'Backend API for screen recording system (Loom-like)',
     endpoints: {
       health: '/health',
-      upload: 'POST /api/v1/upload',
-      stream: 'GET /api/v1/videos/:id',
-      metadata: 'GET /api/v1/videos/:id/metadata',
-      myVideos: 'GET /api/v1/my-videos',
-      delete: 'DELETE /api/v1/videos/:id'
+      upload: 'POST /api/v1/upload (auth required)',
+      stream: 'GET /api/v1/videos/:id (public)',
+      metadata: 'GET /api/v1/videos/:id/metadata (public)',
+      myVideos: 'GET /api/v1/my-videos (auth required)',
+      delete: 'DELETE /api/v1/videos/:id (auth required)'
     },
-    authentication: 'API Key required in X-API-Key header'
+    authentication: 'API Key required in X-API-Key header for protected routes'
   };
 });
+
+// Registrar rotas públicas (sem autenticação)
+await fastify.register(publicRoutes, { prefix: '/api/v1' });
 
 // Registrar rotas com autenticação
 await fastify.register(async function (fastify) {
