@@ -34,5 +34,9 @@ USER nodejs
 # Expor porta
 EXPOSE 3000
 
+# Copiar e configurar script de inicialização
+COPY --chown=nodejs:nodejs start.sh /app/start.sh
+RUN chmod +x /app/start.sh
+
 # Comando de inicialização
-CMD ["node", "src/index.js"]
+CMD ["/app/start.sh"]
