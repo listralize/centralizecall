@@ -138,6 +138,7 @@ export default async function videoRoutes(fastify, options) {
     }
   }, async (request, reply) => {
     const { limit = 50, offset = 0 } = request.query;
+    const userId = 'default-user'; // Usar default-user até implementar autenticação
 
     try {
       const result = await pool.query(
@@ -147,12 +148,12 @@ export default async function videoRoutes(fastify, options) {
          WHERE user_id = $1
          ORDER BY created_at DESC
          LIMIT $2 OFFSET $3`,
-        [request.user.id, limit, offset]
+        [userId, limit, offset]
       );
 
       const countResult = await pool.query(
         'SELECT COUNT(*) FROM videos WHERE user_id = $1',
-        [request.user.id]
+        [userId]
       );
 
       return reply.send({
@@ -184,12 +185,13 @@ export default async function videoRoutes(fastify, options) {
     }
   }, async (request, reply) => {
     const { id } = request.params;
+    const userId = 'default-user'; // Usar default-user até implementar autenticação
 
     try {
       // Verificar se o vídeo pertence ao usuário
       const result = await pool.query(
         'SELECT filename FROM videos WHERE id = $1 AND user_id = $2',
-        [id, request.user.id]
+        [id, userId]
       );
 
       if (result.rows.length === 0) {
