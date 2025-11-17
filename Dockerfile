@@ -34,5 +34,5 @@ USER nodejs
 # Expor porta
 EXPOSE 3000
 
-# Comando de inicialização (usando versão simplificada)
-CMD ["node", "src/index-simple.js"]
+# Comando de inicialização
+CMD ["node", "src/index.js"]
