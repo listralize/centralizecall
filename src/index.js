@@ -7,14 +7,7 @@ import videoRoutes from './routes/videos.js';
 
 const fastify = Fastify({
   logger: {
-    level: process.env.LOG_LEVEL || 'info',
-    transport: {
-      target: 'pino-pretty',
-      options: {
-        translateTime: 'HH:MM:ss Z',
-        ignore: 'pid,hostname'
-      }
-    }
+    level: process.env.LOG_LEVEL || 'info'
   },
   bodyLimit: 1024 * 1024 * 500, // 500MB max file size
   requestTimeout: 300000 // 5 minutos
