@@ -15,8 +15,26 @@ const fastify = Fastify({
 
 // Registrar plugins
 await fastify.register(cors, {
-  origin: process.env.CORS_ORIGIN || '*',
-  credentials: true
+  origin: (origin, cb) => {
+    // Permitir requisições do frontend e de qualquer origem em desenvolvimento
+    const allowedOrigins = [
+      'https://entrac.listralize.com.br',
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'http://localhost:5174'
+    ];
+    
+    // Se não houver origin (requisições do mesmo domínio) ou se estiver na lista, permitir
+    if (!origin || allowedOrigins.includes(origin)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range']
 });
 
 await fastify.register(multipart, {
