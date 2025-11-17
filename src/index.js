@@ -5,6 +5,7 @@ import { authenticateRequest } from './middleware/auth.js';
 import uploadRoutes from './routes/upload.js';
 import videoRoutes from './routes/videos.js';
 import publicRoutes from './routes/public.js';
+import debugRoutes from './routes/debug.js';
 
 const fastify = Fastify({
   logger: {
@@ -55,6 +56,9 @@ fastify.get('/', async (request, reply) => {
 
 // Registrar rotas públicas (sem autenticação)
 await fastify.register(publicRoutes, { prefix: '/api/v1' });
+
+// Registrar rotas de debug (REMOVER EM PRODUÇÃO)
+await fastify.register(debugRoutes, { prefix: '/api/v1' });
 
 // Registrar rotas com autenticação
 await fastify.register(async function (fastify) {
