@@ -1,18 +1,10 @@
 import pool from './config.js';
 
 const createTablesSQL = `
--- Tabela de usuários (simplificada para MVP)
-CREATE TABLE IF NOT EXISTS users (
-  id SERIAL PRIMARY KEY,
-  api_key VARCHAR(255) UNIQUE NOT NULL,
-  email VARCHAR(255),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Tabela de vídeos
+-- Tabela de vídeos (sem dependência de usuários por enquanto)
 CREATE TABLE IF NOT EXISTS videos (
   id VARCHAR(21) PRIMARY KEY,
-  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  user_id VARCHAR(255) DEFAULT 'default-user',
   filename VARCHAR(255) NOT NULL,
   original_filename VARCHAR(255),
   file_size BIGINT,
@@ -30,11 +22,6 @@ CREATE TABLE IF NOT EXISTS videos (
 CREATE INDEX IF NOT EXISTS idx_videos_user_id ON videos(user_id);
 CREATE INDEX IF NOT EXISTS idx_videos_created_at ON videos(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_videos_is_public ON videos(is_public);
-
--- Inserir usuário padrão para testes
-INSERT INTO users (api_key, email) 
-VALUES ('default-api-key-change-me', 'admin@screenrecorder.local')
-ON CONFLICT (api_key) DO NOTHING;
 `;
 
 async function migrate() {
