@@ -147,6 +147,106 @@ export default async function videoRoutes(fastify, options) {
     }
   });
 
+  // GET /api/v1/videos/:id/thumbnail - Servir thumbnail
+  fastify.get('/videos/:id/thumbnail', {
+    schema: {
+      description: 'Get video thumbnail',
+      tags: ['videos'],
+      params: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    const { id } = request.params;
+
+    try {
+      const result = await pool.query(
+        'SELECT thumbnail_url FROM videos WHERE id = $1',
+        [id]
+      );
+
+      if (result.rows.length === 0) {
+        return reply.code(404).send({
+          error: 'Not Found',
+          message: 'Video not found'
+        });
+      }
+
+      const video = result.rows[0];
+      
+      if (!video.thumbnail_url) {
+        return reply.code(404).send({
+          error: 'Not Found',
+          message: 'Thumbnail not available'
+        });
+      }
+
+      const thumbnailPath = path.join(UPLOAD_DIR, '../thumbnails', path.basename(video.thumbnail_url));
+      
+      // Verificar se arquivo existe
+      try {
+        statSync(thumbnailPath);
+      } catch {
+        return reply.code(404).send({
+          error: 'Not Found',
+          message: 'Thumbnail file not found'
+        });
+      }
+
+      return reply
+        .type('image/jpeg')
+        .header('Cache-Control', 'public, max-age=31536000')
+        .send(createReadStream(thumbnailPath));
+    } catch (error) {
+      request.log.error(error);
+      return reply.code(500).send({
+        error: 'Internal Server Error',
+        message: 'Failed to get thumbnail'
+      });
+    }
+  });
+
+  // GET /api/v1/videos/:id/metadata - Buscar metadados completos
+  fastify.get('/videos/:id/metadata', {
+    schema: {
+      description: 'Get video metadata',
+      tags: ['videos'],
+      params: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    const { id } = request.params;
+
+    try {
+      const result = await pool.query(
+        'SELECT * FROM videos WHERE id = $1',
+        [id]
+      );
+
+      if (result.rows.length === 0) {
+        return reply.code(404).send({
+          error: 'Not Found',
+          message: 'Video not found'
+        });
+      }
+
+      return reply.send(result.rows[0]);
+    } catch (error) {
+      request.log.error(error);
+      return reply.code(500).send({
+        error: 'Internal Server Error',
+        message: 'Failed to get metadata'
+      });
+    }
+  });
+
   // DELETE /api/v1/videos/:id - Deletar vídeo
   fastify.delete('/videos/:id', {
     schema: {

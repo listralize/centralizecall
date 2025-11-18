@@ -6,10 +6,12 @@ import path from 'path';
 import pool from '../db/config.js';
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || '/data/videos';
+const THUMBNAIL_DIR = process.env.THUMBNAIL_DIR || '/data/thumbnails';
 
 export default async function uploadRoutes(fastify, options) {
-  // Garantir que o diretório de upload existe
+  // Garantir que os diretórios existem
   await mkdir(UPLOAD_DIR, { recursive: true });
+  await mkdir(THUMBNAIL_DIR, { recursive: true });
 
   // POST /api/v1/upload - Upload de vídeo
   fastify.post('/upload', {
@@ -31,7 +33,25 @@ export default async function uploadRoutes(fastify, options) {
     }
   }, async (request, reply) => {
     try {
-      const data = await request.file();
+      const parts = request.parts();
+      let videoFile = null;
+      let thumbnailFile = null;
+      const fields = {};
+
+      // Processar multipart
+      for await (const part of parts) {
+        if (part.type === 'file') {
+          if (part.fieldname === 'video') {
+            videoFile = part;
+          } else if (part.fieldname === 'thumbnail') {
+            thumbnailFile = part;
+          }
+        } else {
+          fields[part.fieldname] = part.value;
+        }
+      }
+
+      const data = videoFile;
 
       if (!data) {
         return reply.code(400).send({
@@ -61,14 +81,21 @@ export default async function uploadRoutes(fastify, options) {
       // Obter informações do arquivo
       const stats = await import('fs/promises').then(fs => fs.stat(filePath));
 
-      // Extrair metadados adicionais dos fields
-      const fields = data.fields || {};
-      const userId = fields.userId?.value || fields.user_id?.value || 'guest';
-      const title = fields.title?.value || `Recording ${videoId}`;
-      const description = fields.description?.value || null;
-      const thumbnailUrl = fields.thumbnail_url?.value || null;
-      const folderId = fields.folder_id?.value || fields.folderId?.value || null;
-      const soapNotes = fields.soap_notes?.value || null;
+      // Extrair metadados dos fields
+      const userId = fields.userId || fields.user_id || 'guest';
+      const title = fields.title || `Recording ${videoId}`;
+      const description = fields.description || null;
+      const folderId = fields.folder_id || fields.folderId || null;
+      const soapNotes = fields.soap_notes || null;
+
+      // Salvar thumbnail se enviada
+      let thumbnailUrl = null;
+      if (thumbnailFile) {
+        const thumbnailFilename = `${videoId}.jpg`;
+        const thumbnailPath = path.join(THUMBNAIL_DIR, thumbnailFilename);
+        await pipeline(thumbnailFile.file, createWriteStream(thumbnailPath));
+        thumbnailUrl = `/thumbnails/${thumbnailFilename}`;
+      }
 
       // Salvar metadados no banco de dados
       await pool.query(
