@@ -63,22 +63,29 @@ export default async function uploadRoutes(fastify, options) {
 
       // Extrair metadados adicionais dos fields
       const fields = data.fields || {};
+      const userId = fields.userId?.value || fields.user_id?.value || 'guest';
       const title = fields.title?.value || `Recording ${videoId}`;
       const description = fields.description?.value || null;
+      const thumbnailUrl = fields.thumbnail_url?.value || null;
+      const folderId = fields.folder_id?.value || fields.folderId?.value || null;
+      const soapNotes = fields.soap_notes?.value || null;
 
       // Salvar metadados no banco de dados
       await pool.query(
-        `INSERT INTO videos (id, user_id, filename, original_filename, file_size, mime_type, title, description)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        `INSERT INTO videos (id, user_id, filename, original_filename, file_size, mime_type, title, description, thumbnail_url, folder_id, soap_notes)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
         [
           videoId,
-          'default-user', // Usuário padrão por enquanto
+          userId, // CORRIGIDO: agora pega do FormData
           filename,
           data.filename,
           stats.size,
           data.mimetype,
           title,
-          description
+          description,
+          thumbnailUrl,
+          folderId,
+          soapNotes
         ]
       );
 

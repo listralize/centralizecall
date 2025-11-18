@@ -26,7 +26,7 @@ export default async function videoRoutes(fastify, options) {
     try {
       const result = await pool.query(
         `SELECT id, title, description, file_size, mime_type, duration,
-                view_count, created_at, is_public
+                view_count, created_at, is_public, thumbnail_url, folder_id, soap_notes, user_id
          FROM videos
          WHERE user_id = $1
          ORDER BY created_at DESC
@@ -50,6 +50,99 @@ export default async function videoRoutes(fastify, options) {
       return reply.code(500).send({
         error: 'Internal Server Error',
         message: 'Failed to list videos'
+      });
+    }
+  });
+
+  // PATCH /api/v1/videos/:id - Editar metadados do vídeo
+  fastify.patch('/videos/:id', {
+    schema: {
+      description: 'Update video metadata',
+      tags: ['videos'],
+      params: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' }
+        }
+      },
+      body: {
+        type: 'object',
+        properties: {
+          title: { type: 'string' },
+          description: { type: 'string' },
+          folder_id: { type: 'string' },
+          soap_notes: { type: 'string' }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    const { id } = request.params;
+    const { title, description, folder_id, soap_notes } = request.body;
+    const userId = request.query.userId || 'guest';
+
+    try {
+      // Verificar se o vídeo pertence ao usuário
+      const checkResult = await pool.query(
+        'SELECT id FROM videos WHERE id = $1 AND user_id = $2',
+        [id, userId]
+      );
+
+      if (checkResult.rows.length === 0) {
+        return reply.code(404).send({
+          error: 'Not Found',
+          message: 'Video not found or you do not have permission to edit it'
+        });
+      }
+
+      // Construir query dinâmica
+      const updates = [];
+      const values = [];
+      let paramIndex = 1;
+
+      if (title !== undefined) {
+        updates.push(`title = $${paramIndex++}`);
+        values.push(title);
+      }
+      if (description !== undefined) {
+        updates.push(`description = $${paramIndex++}`);
+        values.push(description);
+      }
+      if (folder_id !== undefined) {
+        updates.push(`folder_id = $${paramIndex++}`);
+        values.push(folder_id);
+      }
+      if (soap_notes !== undefined) {
+        updates.push(`soap_notes = $${paramIndex++}`);
+        values.push(soap_notes);
+      }
+
+      if (updates.length === 0) {
+        return reply.code(400).send({
+          error: 'Bad Request',
+          message: 'No fields to update'
+        });
+      }
+
+      values.push(id);
+      const query = `UPDATE videos SET ${updates.join(', ')} WHERE id = $${paramIndex}`;
+
+      await pool.query(query, values);
+
+      // Retornar vídeo atualizado
+      const result = await pool.query(
+        'SELECT * FROM videos WHERE id = $1',
+        [id]
+      );
+
+      return reply.send({
+        message: 'Video updated successfully',
+        video: result.rows[0]
+      });
+    } catch (error) {
+      request.log.error(error);
+      return reply.code(500).send({
+        error: 'Internal Server Error',
+        message: 'Failed to update video'
       });
     }
   });
