@@ -13,122 +13,113 @@ export default async function uploadRoutes(fastify, options) {
   await mkdir(UPLOAD_DIR, { recursive: true });
   await mkdir(THUMBNAIL_DIR, { recursive: true });
 
-  // POST /api/v1/upload - Upload de vídeo
+  // POST /api/v1/upload - Upload de vídeo (SIMPLIFICADO)
   fastify.post('/upload', {
     schema: {
-      description: 'Upload a screen recording video',
-      tags: ['videos'],
+      description: 'Upload a video file',
+      tags: ['upload'],
       consumes: ['multipart/form-data'],
       response: {
         200: {
           type: 'object',
           properties: {
             id: { type: 'string' },
-            url: { type: 'string' },
-            watch_url: { type: 'string' },
-            message: { type: 'string' }
+            message: { type: 'string' },
+            url: { type: 'string' }
           }
         }
       }
     }
   }, async (request, reply) => {
     try {
-      const parts = request.parts();
-      let videoFile = null;
-      let thumbnailFile = null;
-      const fields = {};
-
-      // Processar multipart
-      for await (const part of parts) {
-        if (part.type === 'file') {
-          if (part.fieldname === 'video') {
-            videoFile = part;
-          } else if (part.fieldname === 'thumbnail') {
-            thumbnailFile = part;
-          }
-        } else {
-          fields[part.fieldname] = part.value;
-        }
-      }
-
-      const data = videoFile;
+      console.log('📥 Upload iniciado...');
+      
+      // Pegar apenas o primeiro arquivo (vídeo)
+      const data = await request.file();
 
       if (!data) {
+        console.error('❌ Nenhum arquivo enviado');
         return reply.code(400).send({
           error: 'Bad Request',
-          message: 'No file uploaded. Please send a file in the "file" field.'
+          message: 'No file uploaded'
         });
       }
+
+      console.log('📹 Arquivo recebido:', data.filename, data.mimetype);
 
       // Validar tipo de arquivo
       const allowedMimeTypes = ['video/webm', 'video/mp4', 'video/quicktime'];
       if (!allowedMimeTypes.includes(data.mimetype)) {
+        console.error('❌ Tipo de arquivo inválido:', data.mimetype);
         return reply.code(400).send({
           error: 'Bad Request',
-          message: `Invalid file type. Allowed types: ${allowedMimeTypes.join(', ')}`
+          message: `Invalid file type: ${data.mimetype}`
         });
       }
 
-      // Gerar ID único para o vídeo
+      // Gerar ID único
       const videoId = nanoid();
       const fileExtension = path.extname(data.filename) || '.webm';
       const filename = `${videoId}${fileExtension}`;
       const filePath = path.join(UPLOAD_DIR, filename);
 
-      // Salvar arquivo no disco
+      console.log('💾 Salvando arquivo:', filePath);
+
+      // Salvar arquivo
       await pipeline(data.file, createWriteStream(filePath));
 
-      // Obter informações do arquivo
+      // Obter tamanho do arquivo
       const stats = await import('fs/promises').then(fs => fs.stat(filePath));
+      console.log('✅ Arquivo salvo:', stats.size, 'bytes');
 
       // Extrair metadados dos fields
-      const userId = fields.userId || fields.user_id || 'guest';
-      const title = fields.title || `Recording ${videoId}`;
-      const description = fields.description || null;
-      const folderId = fields.folder_id || fields.folderId || null;
-      const soapNotes = fields.soap_notes || null;
+      const fields = data.fields || {};
+      const userId = fields.userId?.value || fields.user_id?.value || 'guest';
+      const title = fields.title?.value || `Recording ${videoId}`;
+      const description = fields.description?.value || null;
+      const folderId = fields.folder_id?.value || fields.folderId?.value || null;
+      const soapNotes = fields.soap_notes?.value || null;
 
-      // Salvar thumbnail se enviada
-      let thumbnailUrl = null;
-      if (thumbnailFile) {
-        const thumbnailFilename = `${videoId}.jpg`;
-        const thumbnailPath = path.join(THUMBNAIL_DIR, thumbnailFilename);
-        await pipeline(thumbnailFile.file, createWriteStream(thumbnailPath));
-        thumbnailUrl = `/thumbnails/${thumbnailFilename}`;
-      }
+      console.log('👤 User ID:', userId);
+      console.log('📝 Title:', title);
 
-      // Salvar metadados no banco de dados
+      // Salvar no banco
       await pool.query(
-        `INSERT INTO videos (id, user_id, filename, original_filename, file_size, mime_type, title, description, thumbnail_url, folder_id, soap_notes)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+        `INSERT INTO videos (id, user_id, filename, original_filename, file_size, mime_type, title, description, folder_id, soap_notes)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
         [
           videoId,
-          userId, // CORRIGIDO: agora pega do FormData
+          userId,
           filename,
           data.filename,
           stats.size,
           data.mimetype,
           title,
           description,
-          thumbnailUrl,
           folderId,
           soapNotes
         ]
       );
 
+      console.log('✅ Vídeo salvo no banco:', videoId);
+
       const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
-      
-      return reply.code(200).send({
+
+      return reply.send({
         id: videoId,
+        message: 'Video uploaded successfully',
         url: `${baseUrl}/api/v1/videos/${videoId}`,
-        watch_url: `${baseUrl}/watch/${videoId}`,
-        message: 'Video uploaded successfully'
+        size: stats.size,
+        filename: filename
       });
+
     } catch (error) {
-      request.log.error(error);
+      console.error('❌ Erro no upload:', error);
+      console.error('Stack:', error.stack);
+      
       return reply.code(500).send({
         error: 'Internal Server Error',
-        message: 'Failed to upload video'
+        message: error.message || 'Failed to upload video'
       });
     }
   });
