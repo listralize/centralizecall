@@ -4,6 +4,7 @@ import { createWriteStream } from 'fs';
 import { mkdir } from 'fs/promises';
 import path from 'path';
 import pool from '../db/config.js';
+import { generateThumbnail, getVideoDuration } from '../services/videoProcessor.js';
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || '/data/videos';
 const THUMBNAIL_DIR = process.env.THUMBNAIL_DIR || '/data/thumbnails';
@@ -72,6 +73,31 @@ export default async function uploadRoutes(fastify, options) {
       const stats = await import('fs/promises').then(fs => fs.stat(filePath));
       console.log('✅ Arquivo salvo:', stats.size, 'bytes');
 
+      // Gerar thumbnail automaticamente
+      let thumbnailUrl = null;
+      try {
+        const thumbnailFilename = `${videoId}.jpg`;
+        const thumbnailPath = path.join(THUMBNAIL_DIR, thumbnailFilename);
+        
+        const thumbnailGenerated = await generateThumbnail(filePath, thumbnailPath);
+        
+        if (thumbnailGenerated) {
+          thumbnailUrl = `/thumbnails/${thumbnailFilename}`;
+          console.log('✅ Thumbnail gerado:', thumbnailUrl);
+        }
+      } catch (thumbError) {
+        console.error('⚠️  Erro ao gerar thumbnail (continuando sem thumbnail):', thumbError);
+      }
+
+      // Obter duração do vídeo
+      let duration = null;
+      try {
+        duration = await getVideoDuration(filePath);
+        console.log('⏱️  Duração:', duration, 'segundos');
+      } catch (durationError) {
+        console.error('⚠️  Erro ao obter duração:', durationError);
+      }
+
       // Extrair metadados dos fields
       const fields = data.fields || {};
       const userId = fields.userId?.value || fields.user_id?.value || 'guest';
@@ -85,8 +111,8 @@ export default async function uploadRoutes(fastify, options) {
 
       // Salvar no banco
       await pool.query(
-        `INSERT INTO videos (id, user_id, filename, original_filename, file_size, mime_type, title, description, folder_id, soap_notes)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        `INSERT INTO videos (id, user_id, filename, original_filename, file_size, mime_type, title, description, folder_id, soap_notes, thumbnail_url, duration)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
         [
           videoId,
           userId,
@@ -97,7 +123,9 @@ export default async function uploadRoutes(fastify, options) {
           title,
           description,
           folderId,
-          soapNotes
+          soapNotes,
+          thumbnailUrl,
+          duration
         ]
       );
 

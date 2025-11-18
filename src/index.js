@@ -4,9 +4,10 @@ import multipart from '@fastify/multipart';
 import { authenticateRequest } from './middleware/auth.js';
 import uploadRoutes from './routes/upload.js';
 import videoRoutes from './routes/videos.js';
-import folderRoutes from './routes/folders.js';
 import publicRoutes from './routes/public.js';
 import debugRoutes from './routes/debug.js';
+import folderRoutes from './routes/folders.js';
+import trimRoutes from './routes/trim.js';
 
 const fastify = Fastify({
   logger: {
@@ -70,6 +71,7 @@ await fastify.register(async function (fastify) {
   await fastify.register(uploadRoutes, { prefix: '/api/v1' });
   await fastify.register(videoRoutes, { prefix: '/api/v1' });
   await fastify.register(folderRoutes, { prefix: '/api/v1' });
+  await fastify.register(trimRoutes, { prefix: '/api/v1' });
 });
 
 // Tratamento de erros global
