@@ -209,44 +209,6 @@ export default async function videoRoutes(fastify, options) {
     }
   });
 
-  // GET /api/v1/videos/:id/metadata - Buscar metadados completos
-  fastify.get('/videos/:id/metadata', {
-    schema: {
-      description: 'Get video metadata',
-      tags: ['videos'],
-      params: {
-        type: 'object',
-        properties: {
-          id: { type: 'string' }
-        }
-      }
-    }
-  }, async (request, reply) => {
-    const { id } = request.params;
-
-    try {
-      const result = await pool.query(
-        'SELECT * FROM videos WHERE id = $1',
-        [id]
-      );
-
-      if (result.rows.length === 0) {
-        return reply.code(404).send({
-          error: 'Not Found',
-          message: 'Video not found'
-        });
-      }
-
-      return reply.send(result.rows[0]);
-    } catch (error) {
-      request.log.error(error);
-      return reply.code(500).send({
-        error: 'Internal Server Error',
-        message: 'Failed to get metadata'
-      });
-    }
-  });
-
   // DELETE /api/v1/videos/:id - Deletar vídeo
   fastify.delete('/videos/:id', {
     schema: {
