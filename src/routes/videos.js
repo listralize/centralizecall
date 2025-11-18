@@ -6,6 +6,46 @@ const UPLOAD_DIR = process.env.UPLOAD_DIR || '/data/videos';
 
 export default async function videoRoutes(fastify, options) {
   
+  // GET /api/v1/videos/latest - Obter último vídeo (para teste)
+  fastify.get('/videos/latest', {
+    schema: {
+      description: 'Get latest video for testing',
+      tags: ['videos'],
+      querystring: {
+        type: 'object',
+        properties: {
+          userId: { type: 'string' }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    const { userId } = request.query;
+
+    try {
+      const query = userId 
+        ? 'SELECT * FROM videos WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1'
+        : 'SELECT * FROM videos ORDER BY created_at DESC LIMIT 1';
+      
+      const params = userId ? [userId] : [];
+      const result = await pool.query(query, params);
+
+      if (result.rows.length === 0) {
+        return reply.code(404).send({
+          error: 'Not Found',
+          message: 'No videos found'
+        });
+      }
+
+      return reply.send(result.rows[0]);
+    } catch (error) {
+      request.log.error(error);
+      return reply.code(500).send({
+        error: 'Internal Server Error',
+        message: 'Failed to get latest video'
+      });
+    }
+  });
+  
   // GET /api/v1/my-videos - Listar vídeos do usuário autenticado
   fastify.get('/my-videos', {
     schema: {

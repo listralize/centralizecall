@@ -20,7 +20,7 @@ const fastify = Fastify({
 await fastify.register(cors, {
   origin: true, // Permitir todas as origens
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
   exposedHeaders: ['Content-Range', 'X-Content-Range']
 });
